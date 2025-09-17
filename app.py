@@ -1,38 +1,83 @@
 import streamlit as st
-import pickle
+import joblib
 import numpy as np
 
-# Load the saved SVM model
-with open("svm_model_state26.pkl", "rb") as f:
-    model = pickle.load(f)
+# --- Page Config ---
+st.set_page_config(page_title="🍷 Wine Quality Classifier", page_icon="🍷", layout="centered")
 
-st.title("🍷 Wine Quality Prediction App By Himanshu 😎")
+# --- Dynamic CSS ---
+st.markdown(
+    """
+    <style>
+    body {
+        background: linear-gradient(135deg, #f8f9fa, #e3f2fd);
+        font-family: Arial, sans-serif;
+    }
+    .main {
+        padding: 2rem;
+        background-color: #ffffffcc;
+        border-radius: 15px;
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.1);
+    }
+    h1, h2 {
+        text-align: center;
+        color: #2c3e50;
+    }
+    .stButton>button {
+        background-color: #4cafef;
+        color: white;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        border: none;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+    .stButton>button:hover {
+        background-color: #2196f3;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
-st.write("Enter the wine characteristics below to predict its quality.")
+# --- Load Model and Scaler ---
+try:
+    model = joblib.load("wine_svm_model.pkl")
+    scaler = joblib.load("wine_scaler.pkl")
+except Exception as e:
+    st.error(f"Error loading model or scaler: {e}")
+    st.stop()
 
-# Input fields for each feature
-fixed_acidity = st.number_input("Fixed Acidity", min_value=0.0, step=0.1)
-volatile_acidity = st.number_input("Volatile Acidity", min_value=0.0, step=0.01)
-citric_acid = st.number_input("Citric Acid", min_value=0.0, step=0.01)
-residual_sugar = st.number_input("Residual Sugar", min_value=0.0, step=0.1)
-chlorides = st.number_input("Chlorides", min_value=0.0, step=0.001)
-free_sulfur_dioxide = st.number_input("Free Sulfur Dioxide", min_value=0.0, step=1.0)
-total_sulfur_dioxide = st.number_input("Total Sulfur Dioxide", min_value=0.0, step=1.0)
-density = st.number_input("Density", min_value=0.0, step=0.0001, format="%.5f")
-pH = st.number_input("pH", min_value=0.0, step=0.01)
-sulphates = st.number_input("Sulphates", min_value=0.0, step=0.01)
-alcohol = st.number_input("Alcohol", min_value=0.0, step=0.1)
+# --- App Title ---
+st.title("🍷 Wine Quality Classifier")
+st.write("Enter the wine characteristics below to predict if it's **Good** (≥6) or **Not Good** (<6).")
 
-# Dropdown for type (assuming Red/White wine)
-wine_type = st.selectbox("Type of Wine", ["Red", "White"])
-wine_type_encoded = 0 if wine_type == "Red" else 1
+# --- Feature Inputs ---
+col1, col2 = st.columns(2)
 
-# Predict button
+fixed_acidity = col1.number_input("Fixed Acidity", min_value=0.0, max_value=20.0, value=7.4)
+volatile_acidity = col2.number_input("Volatile Acidity", min_value=0.0, max_value=2.0, value=0.7)
+citric_acid = col1.number_input("Citric Acid", min_value=0.0, max_value=1.0, value=0.0)
+residual_sugar = col2.number_input("Residual Sugar", min_value=0.0, max_value=15.0, value=1.9)
+chlorides = col1.number_input("Chlorides", min_value=0.0, max_value=1.0, value=0.076)
+free_sulfur_dioxide = col2.number_input("Free Sulfur Dioxide", min_value=0.0, max_value=80.0, value=11.0)
+total_sulfur_dioxide = col1.number_input("Total Sulfur Dioxide", min_value=0.0, max_value=300.0, value=34.0)
+density = col2.number_input("Density", min_value=0.990, max_value=1.005, value=0.9978)
+ph = col1.number_input("pH", min_value=2.5, max_value=4.5, value=3.51)
+sulphates = col2.number_input("Sulphates", min_value=0.3, max_value=2.0, value=0.56)
+alcohol = st.slider("Alcohol", min_value=8.0, max_value=15.0, value=9.4)
+
+# --- Prediction Button ---
 if st.button("Predict Quality"):
-    features = np.array([[fixed_acidity, volatile_acidity, citric_acid,
-                          residual_sugar, chlorides, free_sulfur_dioxide,
-                          total_sulfur_dioxide, density, pH, sulphates,
-                          alcohol, wine_type_encoded]])
-    
-    prediction = model.predict(features)
-    st.success(f"Predicted Wine Quality: {prediction[0]}")
+    features = np.array([[fixed_acidity, volatile_acidity, citric_acid, residual_sugar, chlorides,
+                          free_sulfur_dioxide, total_sulfur_dioxide, density, ph, sulphates, alcohol]])
+    scaled_features = scaler.transform(features)
+    prediction = model.predict(scaled_features)
+    label = "🍇 **Good Quality Wine!**" if prediction[0] == 1 else "⚠️ **Not Good Quality Wine.**"
+
+    st.subheader("Prediction Result")
+    st.success(label)
+
+# --- Footer ---
+st.markdown("<hr style='border:1px solid #ddd'>", unsafe_allow_html=True)
+st.caption("Made with ❤️ using Streamlit and SVM")
