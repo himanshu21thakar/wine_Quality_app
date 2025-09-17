@@ -1,37 +1,38 @@
-import kagglehub
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
-from sklearn.metrics import accuracy_score
-import joblib
+import streamlit as st
+import pickle
+import numpy as np
 
-# --- Download dataset ---
-path = kagglehub.dataset_download("yasserh/wine-quality-dataset")
-df = pd.read_csv(f"{path}/WineQT.csv")
+# Load the saved SVM model
+with open("svm_model_state26.pkl", "rb") as f:
+    model = pickle.load(f)
 
-# --- Prepare data ---
-df = df.dropna()
-X = df.drop(columns=["quality", "Id"])
-y = df["quality"].apply(lambda x: 1 if x >= 6 else 0)
+st.title("🍷 Wine Quality Prediction App By Himanshu 😎")
 
-# --- Split and scale ---
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y
-)
-scaler = StandardScaler()
-X_train = scaler.fit_transform(X_train)
-X_test = scaler.transform(X_test)
+st.write("Enter the wine characteristics below to predict its quality.")
 
-# --- Train SVM model ---
-svm_model = SVC(kernel="rbf", C=1.0, gamma="scale", random_state=42)
-svm_model.fit(X_train, y_train)
+# Input fields for each feature
+fixed_acidity = st.number_input("Fixed Acidity", min_value=0.0, step=0.1)
+volatile_acidity = st.number_input("Volatile Acidity", min_value=0.0, step=0.01)
+citric_acid = st.number_input("Citric Acid", min_value=0.0, step=0.01)
+residual_sugar = st.number_input("Residual Sugar", min_value=0.0, step=0.1)
+chlorides = st.number_input("Chlorides", min_value=0.0, step=0.001)
+free_sulfur_dioxide = st.number_input("Free Sulfur Dioxide", min_value=0.0, step=1.0)
+total_sulfur_dioxide = st.number_input("Total Sulfur Dioxide", min_value=0.0, step=1.0)
+density = st.number_input("Density", min_value=0.0, step=0.0001, format="%.5f")
+pH = st.number_input("pH", min_value=0.0, step=0.01)
+sulphates = st.number_input("Sulphates", min_value=0.0, step=0.01)
+alcohol = st.number_input("Alcohol", min_value=0.0, step=0.1)
 
-# --- Evaluate ---
-y_pred = svm_model.predict(X_test)
-print(f"Accuracy: {accuracy_score(y_test, y_pred):.2f}")
+# Dropdown for type (assuming Red/White wine)
+wine_type = st.selectbox("Type of Wine", ["Red", "White"])
+wine_type_encoded = 0 if wine_type == "Red" else 1
 
-# --- Save the model and scaler ---
-joblib.dump(svm_model, "wine_svm_model.pkl")
-joblib.dump(scaler, "wine_scaler.pkl")
-print("Model and scaler saved as 'wine_svm_model.pkl' and 'wine_scaler.pkl'")
+# Predict button
+if st.button("Predict Quality"):
+    features = np.array([[fixed_acidity, volatile_acidity, citric_acid,
+                          residual_sugar, chlorides, free_sulfur_dioxide,
+                          total_sulfur_dioxide, density, pH, sulphates,
+                          alcohol, wine_type_encoded]])
+    
+    prediction = model.predict(features)
+    st.success(f"Predicted Wine Quality: {prediction[0]}")
